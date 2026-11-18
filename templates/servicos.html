@@ -1,0 +1,382 @@
+{% extends "base.html" %}
+{% block title %}Serviços &amp; Equipe{% endblock %}
+
+{% block header_title %}
+<h1>Catálogo de Serviços &amp; Equipe</h1>
+<p class="of-sub">Configurações exclusivas do administrador do Pet Shop Oliver's</p>
+{% endblock %}
+
+{% block header_actions %}
+<a class="btn btn-of-outline" href="#equipe">
+    <i class="bi bi-people-fill" aria-hidden="true"></i>
+    <span>Ir para Equipe</span>
+</a>
+<button type="button" class="btn btn-of-accent" data-bs-toggle="modal" data-bs-target="#modalNovoServico">
+    <i class="bi bi-plus-lg" aria-hidden="true"></i>
+    <span>Novo serviço</span>
+</button>
+{% endblock %}
+
+{% block content %}
+{# ==========================================================================
+   SECAO 1: Catalogo de Servicos (Figma 15 - RF03, RF04)
+   ========================================================================== #}
+<section class="of-card mb-4" aria-labelledby="titulo-servicos">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+        <div>
+            <h2 class="of-card-title mb-0" id="titulo-servicos">Lista de serviços</h2>
+            <p class="text-muted small mb-0">
+                Serviços inativos deixam de aparecer para novos agendamentos, preservando o histórico financeiro.
+            </p>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="of-table">
+            <caption class="visually-hidden">Catálogo de serviços do Pet Shop Oliver's</caption>
+            <thead>
+                <tr>
+                    <th scope="col">Serviço</th>
+                    <th scope="col">Duração estimada</th>
+                    <th scope="col">Valor base</th>
+                    <th scope="col">Status</th>
+                    <th scope="col" class="text-end">Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in servicos %}
+                <tr>
+                    <td class="fw-bold">{{ s.nome }}</td>
+                    <td>{{ duracao_texto(s.duracao_min) }} ({{ s.duracao_min }} min)</td>
+                    <td class="fw-bold">{{ moeda(s.valor) }}</td>
+                    <td>
+                        {% if s.ativo %}
+                        <span class="of-tag ok"><i class="bi bi-check-circle-fill" aria-hidden="true"></i> Ativo</span>
+                        {% else %}
+                        <span class="of-tag off"><i class="bi bi-pause-circle-fill" aria-hidden="true"></i> Inativo</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end">
+                        <div class="d-inline-flex gap-2">
+                            <button type="button" class="btn btn-of-outline"
+                                    data-bs-toggle="modal" data-bs-target="#modalEditarServico"
+                                    data-id="{{ s.id_servico }}" data-nome="{{ s.nome }}"
+                                    data-duracao="{{ s.duracao_min }}"
+                                    data-valor="{{ ('%.2f'|format(s.valor)).replace('.', ',') }}">
+                                <i class="bi bi-pencil" aria-hidden="true"></i>
+                                <span>Editar</span>
+                            </button>
+                            <form method="post" action="{{ url_for('alternar_servico', id_servico=s.id_servico) }}">
+                                <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn {{ 'btn-of-danger' if s.ativo else 'btn-of-primary' }}">
+                                    <i class="bi {{ 'bi-slash-circle' if s.ativo else 'bi-check-circle' }}" aria-hidden="true"></i>
+                                    <span>{{ 'Inativar' if s.ativo else 'Ativar' }}</span>
+                                </button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+{# ==========================================================================
+   SECAO 2: Equipe & Colaboradores (Figma 16)
+   ========================================================================== #}
+<section id="equipe" aria-labelledby="titulo-equipe">
+    <div class="row g-3 mb-3">
+        <div class="col-md-6">
+            <div class="of-card of-stat">
+                <p class="of-stat-label">Total na equipe</p>
+                <p class="of-stat-value">{{ usuarios|length }} colaborador(es)</p>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="of-card of-stat">
+                <p class="of-stat-label">Operacionais ativos</p>
+                <p class="of-stat-value">
+                    {{ usuarios|selectattr('perfil', 'equalto', 'Atendente')|selectattr('ativo')|list|length }} atendente(s)
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        {# Formulario de novo colaborador #}
+        <div class="col-lg-5">
+            <div class="of-card h-100">
+                <h2 class="of-card-title" id="titulo-equipe">Cadastrar novo colaborador</h2>
+                <p class="text-muted small">
+                    Preencha os dados de acesso. O sistema permite apenas os perfis <strong>Admin</strong>
+                    e <strong>Atendente</strong> (clientes/tutores não possuem login).
+                </p>
+
+                <form method="post" action="{{ url_for('criar_usuario') }}">
+                    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+
+                    <div class="mb-3">
+                        <label for="nu_nome" class="form-label">Nome completo</label>
+                        <input type="text" id="nu_nome" name="nome" class="form-control"
+                               placeholder="Ex.: Carlos Eduardo Santos" maxlength="100" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="nu_login" class="form-label">Login de acesso (único)</label>
+                        <input type="text" id="nu_login" name="login" class="form-control"
+                               placeholder="Ex.: carlos.santos" maxlength="50" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="nu_senha" class="form-label">Senha inicial (mín. 8 caracteres, letras e números)</label>
+                        <input type="password" id="nu_senha" name="senha" class="form-control"
+                               placeholder="Ex.: Oliver@2026" minlength="8" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <span class="form-label d-block">Nível de permissão no sistema</span>
+                        <div class="row g-2">
+                            <div class="col-6 of-option">
+                                <input type="radio" name="perfil" id="nu_perfil_atendente" value="Atendente" checked>
+                                <label for="nu_perfil_atendente">
+                                    <span class="check" aria-hidden="true"></span>
+                                    <span>
+                                        <span class="opt-title">Atendente</span>
+                                        <span class="opt-sub">Agenda, fila, pets e caixa</span>
+                                    </span>
+                                </label>
+                            </div>
+                            <div class="col-6 of-option">
+                                <input type="radio" name="perfil" id="nu_perfil_admin" value="Admin">
+                                <label for="nu_perfil_admin">
+                                    <span class="check" aria-hidden="true"></span>
+                                    <span>
+                                        <span class="opt-title">Admin</span>
+                                        <span class="opt-sub">Acesso total e equipe</span>
+                                    </span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-of-primary w-100">
+                        <i class="bi bi-person-check-fill" aria-hidden="true"></i>
+                        <span>Salvar e criar acesso do colaborador</span>
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        {# Tabela de colaboradores #}
+        <div class="col-lg-7">
+            <div class="of-card h-100">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                    <h2 class="of-card-title mb-0">Colaboradores da equipe</h2>
+                    <div>
+                        <label for="filtro_equipe" class="visually-hidden">Buscar colaborador</label>
+                        <input type="search" id="filtro_equipe" class="form-control"
+                               placeholder="Buscar por nome ou login...">
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="of-table" id="tabela_equipe">
+                        <caption class="visually-hidden">Usuários cadastrados no OliverFlow</caption>
+                        <thead>
+                            <tr>
+                                <th scope="col">Colaborador</th>
+                                <th scope="col">Login</th>
+                                <th scope="col">Perfil</th>
+                                <th scope="col">Status</th>
+                                <th scope="col" class="text-end">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for u in usuarios %}
+                            <tr>
+                                <td>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <span class="of-avatar c{{ (loop.index % 4) + 1 }}" aria-hidden="true">{{ iniciais(u.nome) }}</span>
+                                        <span class="fw-bold">{{ u.nome }}</span>
+                                    </div>
+                                </td>
+                                <td><code>{{ u.login }}</code></td>
+                                <td>
+                                    <span class="of-tag {{ '' if u.is_admin else 'neutral' }}">
+                                        {{ 'Admin' if u.is_admin else 'Atendente (Operacional)' }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if u.esta_bloqueado %}
+                                    <span class="of-tag off">
+                                        <i class="bi bi-lock-fill" aria-hidden="true"></i>
+                                        Bloqueado até {{ u.bloqueado_ate.strftime('%H:%M') }}
+                                    </span>
+                                    {% elif u.ativo %}
+                                    <span class="of-tag ok"><i class="bi bi-check-circle-fill" aria-hidden="true"></i> Ativo</span>
+                                    {% else %}
+                                    <span class="of-tag off"><i class="bi bi-slash-circle" aria-hidden="true"></i> Inativo</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end">
+                                    <div class="d-inline-flex gap-2">
+                                        {% if u.esta_bloqueado %}
+                                        <form method="post" action="{{ url_for('desbloquear_usuario', id_usuario=u.id_usuario) }}">
+                                            <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+                                            <button type="submit" class="btn btn-of-accent">
+                                                <i class="bi bi-unlock-fill" aria-hidden="true"></i>
+                                                <span>Desbloquear</span>
+                                            </button>
+                                        </form>
+                                        {% endif %}
+                                        <button type="button" class="btn btn-of-outline"
+                                                data-bs-toggle="modal" data-bs-target="#modalEditarUsuario"
+                                                data-id="{{ u.id_usuario }}" data-nome="{{ u.nome }}"
+                                                data-login="{{ u.login }}" data-perfil="{{ u.perfil }}">
+                                            <i class="bi bi-pencil" aria-hidden="true"></i>
+                                            <span>Editar</span>
+                                        </button>
+                                        {% if u.id_usuario != g.usuario.id_usuario %}
+                                        <form method="post" action="{{ url_for('alternar_usuario', id_usuario=u.id_usuario) }}">
+                                            <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+                                            <button type="submit" class="btn {{ 'btn-of-danger' if u.ativo else 'btn-of-primary' }}">
+                                                <span>{{ 'Inativar' if u.ativo else 'Ativar' }}</span>
+                                            </button>
+                                        </form>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+{# ==========================================================================
+   MODAL 1: Novo Servico
+   ========================================================================== #}
+<div class="modal fade" id="modalNovoServico" tabindex="-1" aria-labelledby="tituloNovoServico" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title fs-4" id="tituloNovoServico">Cadastrar novo serviço</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <form method="post" action="{{ url_for('criar_servico') }}">
+                <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="ns_nome" class="form-label">Nome do serviço</label>
+                        <input type="text" id="ns_nome" name="nome" class="form-control"
+                               placeholder="Ex.: Hidratação" maxlength="60" required>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-6">
+                            <label for="ns_duracao" class="form-label">Duração (em minutos)</label>
+                            <input type="number" id="ns_duracao" name="duracao_min" class="form-control"
+                                   min="15" max="600" step="15" value="60" required>
+                        </div>
+                        <div class="col-6">
+                            <label for="ns_valor" class="form-label">Valor base (R$)</label>
+                            <input type="text" id="ns_valor" name="valor" class="form-control"
+                                   placeholder="Ex.: 55,00" inputmode="decimal" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-of-outline" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-of-primary">Salvar serviço</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{# ==========================================================================
+   MODAL 2: Editar Servico (Figma 15)
+   ========================================================================== #}
+<div class="modal fade" id="modalEditarServico" tabindex="-1" aria-labelledby="tituloEditarServico" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title fs-4" id="tituloEditarServico">Editar serviço</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <form method="post" action="#">
+                <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="es_nome" class="form-label">Nome do serviço</label>
+                        <input type="text" id="es_nome" name="nome" class="form-control" maxlength="60" required>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-6">
+                            <label for="es_duracao" class="form-label">Duração (em minutos)</label>
+                            <input type="number" id="es_duracao" name="duracao_min" class="form-control"
+                                   min="15" max="600" step="5" required>
+                        </div>
+                        <div class="col-6">
+                            <label for="es_valor" class="form-label">Valor base (R$)</label>
+                            <input type="text" id="es_valor" name="valor" class="form-control"
+                                   inputmode="decimal" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-of-outline" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-of-primary">Salvar alterações</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{# ==========================================================================
+   MODAL 3: Editar Colaborador
+   ========================================================================== #}
+<div class="modal fade" id="modalEditarUsuario" tabindex="-1" aria-labelledby="tituloEditarUsuario" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title fs-4" id="tituloEditarUsuario">Editar colaborador</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <form method="post" action="#">
+                <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="eu_nome" class="form-label">Nome completo</label>
+                        <input type="text" id="eu_nome" name="nome" class="form-control" maxlength="100" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="eu_login" class="form-label">Login</label>
+                        <input type="text" id="eu_login" name="login" class="form-control" maxlength="50" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="eu_perfil" class="form-label">Perfil</label>
+                        <select id="eu_perfil" name="perfil" class="form-select" required>
+                            {% for p in PERFIS %}
+                            <option value="{{ p }}">{{ p }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label for="eu_senha" class="form-label">Nova senha (deixe em branco para manter a atual)</label>
+                        <input type="password" id="eu_senha" name="senha" class="form-control" minlength="8"
+                               placeholder="Preencha apenas se desejar redefinir">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-of-outline" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-of-primary">Salvar alterações</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

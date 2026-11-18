@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}Entrar{% endblock %}
+
+{% block auth_content %}
+<div class="of-login">
+    <section class="of-login-brand" aria-label="Apresentação institucional">
+        <div class="d-flex align-items-center gap-3">
+            <img class="of-logo" src="{{ url_for('static', filename='img/logo-olivers.png') }}" alt="Logo Pet Shop Oliver's">
+            <div>
+                <div class="fs-4 fw-bold text-white">OliverFlow</div>
+                <div style="color: var(--of-yellow);">Pet Shop Oliver's</div>
+            </div>
+        </div>
+
+        <h1 class="tagline">Cada pet no horário,<br>cada tutor avisado</h1>
+        <p class="desc mb-0">
+            Agenda, atendimentos, pagamentos e histórico do pet com um só login,
+            feito para a equipe interna do Pet Shop Oliver's.
+        </p>
+
+        <div class="copy">© OliverFlow · Pet Shop Oliver's — Uso exclusivo da equipe interna (Backoffice)</div>
+    </section>
+
+    <main id="conteudo-principal" class="of-login-form" tabindex="-1">
+        <div class="of-card of-login-card p-4 p-md-5">
+            <h2 class="mb-1">Entrar</h2>
+            <p class="text-muted small mb-4">Acesso restrito a proprietário e atendentes autorizados.</p>
+
+            {% with mensagens = get_flashed_messages(with_categories=true) %}
+                {% if mensagens %}
+                <div aria-live="assertive" class="mb-3">
+                    {% for categoria, msg in mensagens %}
+                    <div class="alert alert-{{ categoria }}" role="alert">
+                        <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+                        <div>{{ msg }}</div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            {% endwith %}
+
+            <form method="post" action="{{ url_for('login', next=request.args.get('next')) }}" novalidate>
+                <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+
+                <div class="mb-3">
+                    <label for="campo_login" class="form-label">Login do colaborador</label>
+                    <input type="text" class="form-control" id="campo_login" name="login"
+                           value="{{ login_digitado }}" placeholder="Ex.: jefferson ou atendente"
+                           autocomplete="username" required autofocus>
+                </div>
+
+                <div class="mb-3">
+                    <label for="campo_senha" class="form-label">Senha</label>
+                    <input type="password" class="form-control" id="campo_senha" name="senha"
+                           placeholder="Digite sua senha" autocomplete="current-password" required>
+                </div>
+
+                <div class="d-flex justify-content-end mb-3">
+                    <button type="button" class="btn btn-link p-0 text-decoration-none"
+                            data-bs-toggle="modal" data-bs-target="#modalEsqueciSenha">
+                        Esqueci minha senha
+                    </button>
+                </div>
+
+                <button type="submit" class="btn btn-of-accent w-100">
+                    <i class="bi bi-box-arrow-in-right" aria-hidden="true"></i>
+                    <span>Entrar no OliverFlow</span>
+                </button>
+            </form>
+
+            <hr class="my-4">
+            <div class="small text-muted">
+                <strong>Ambiente de avaliação (seed):</strong><br>
+                Admin: <code>jefferson</code> / <code>Oliver@2026</code><br>
+                Atendente: <code>atendente</code> / <code>Atende@2026</code>
+            </div>
+        </div>
+    </main>
+</div>
+
+{# Modal de recuperacao de acesso (Figma 02 - Esqueci minha senha) #}
+<div class="modal fade" id="modalEsqueciSenha" tabindex="-1" aria-labelledby="tituloEsqueciSenha" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title fs-5" id="tituloEsqueciSenha">Recuperação de senha</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-2">
+                    Por segurança (ISO/IEC 27002), o OliverFlow é um sistema <strong>100% interno</strong>.
+                    A redefinição de senha e o desbloqueio após 5 tentativas incorretas são realizados
+                    pelo administrador da loja (Sr. Jefferson S. Oliveira) no menu
+                    <strong>Serviços &amp; Equipe</strong>.
+                </p>
+                <p class="text-muted small mb-0">
+                    Solicite ao administrador a atualização da sua senha ou o desbloqueio imediato do seu login.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-of-primary" data-bs-dismiss="modal">Entendi</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

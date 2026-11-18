@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% block title %}Faturamento &amp; Histórico{% endblock %}
+
+{% block header_title %}
+<h1>Pagamentos &amp; Histórico</h1>
+<p class="of-sub">
+    Histórico financeiro do Pet Shop Oliver's · Período {{ inicio.strftime('%d/%m/%Y') }} a {{ fim.strftime('%d/%m/%Y') }}
+</p>
+{% endblock %}
+
+{% block content %}
+{# --- Resumo financeiro do periodo (Figma 09) ---------------------------- #}
+<section aria-label="Resumo financeiro do período" class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="of-card of-stat of-stat-highlight">
+            <p class="of-stat-label">Faturamento no período</p>
+            <p class="of-stat-value">{{ moeda(total) }}</p>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="of-card of-stat">
+            <p class="of-stat-label">Atendimentos concluídos</p>
+            <p class="of-stat-value">{{ atendimentos|length }}</p>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="of-card of-stat">
+            <p class="of-stat-label">Ticket médio</p>
+            <p class="of-stat-value">{{ moeda(ticket) }}</p>
+        </div>
+    </div>
+</section>
+
+<section aria-label="Total recebido por forma de pagamento" class="row g-3 mb-4">
+    {% for f in FORMAS_PAGAMENTO %}
+    <div class="col-6 col-lg-3">
+        <div class="of-card py-3">
+            <div class="text-muted small">{{ ROTULO_FORMA[f] }}</div>
+            <div class="fs-5 fw-bold">{{ moeda(por_forma[f]) }}</div>
+        </div>
+    </div>
+    {% endfor %}
+</section>
+
+{# --- Filtro por periodo e forma + tabela de transacoes ------------------ #}
+<section class="of-card" aria-labelledby="titulo-transacoes">
+    <div class="d-flex justify-content-between align-items-end flex-wrap gap-3 mb-3">
+        <h2 class="of-card-title mb-0" id="titulo-transacoes">Histórico de transações concluídas</h2>
+
+        <form method="get" action="{{ url_for('historico') }}" class="row g-2 align-items-end">
+            <div class="col-auto">
+                <label for="hist_inicio" class="form-label">Data inicial</label>
+                <input type="date" id="hist_inicio" name="inicio" value="{{ inicio.isoformat() }}" class="form-control">
+            </div>
+            <div class="col-auto">
+                <label for="hist_fim" class="form-label">Data final</label>
+                <input type="date" id="hist_fim" name="fim" value="{{ fim.isoformat() }}" class="form-control">
+            </div>
+            <div class="col-auto">
+                <label for="hist_forma" class="form-label">Forma de pagamento</label>
+                <select id="hist_forma" name="forma" class="form-select">
+                    <option value="">Todas as formas</option>
+                    {% for f in FORMAS_PAGAMENTO %}
+                    <option value="{{ f }}" {% if forma == f %}selected{% endif %}>{{ ROTULO_FORMA[f] }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-of-primary">
+                    <i class="bi bi-funnel-fill" aria-hidden="true"></i>
+                    <span>Filtrar período</span>
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <div class="table-responsive">
+        <table class="of-table">
+            <caption class="visually-hidden">Atendimentos concluídos e pagamentos registrados</caption>
+            <thead>
+                <tr>
+                    <th scope="col">Pet / Tutor</th>
+                    <th scope="col">Serviço</th>
+                    <th scope="col">Data / Entrega</th>
+                    <th scope="col">Forma</th>
+                    <th scope="col">Valor pago</th>
+                    <th scope="col">Operador (Auditoria)</th>
+                    <th scope="col">Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ag in atendimentos %}
+                {% set pg = ag.pagamento %}
+                <tr>
+                    <td>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="of-avatar c{{ (loop.index % 4) + 1 }}" aria-hidden="true">{{ iniciais(ag.pet.nome) }}</span>
+                            <div>
+                                <div class="fw-bold">{{ ag.pet.nome }}</div>
+                                <div class="text-muted small">{{ ag.pet.tutor.nome }}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td>{{ ag.servico.nome }}</td>
+                    <td>
+                        <div>{{ ag.data.strftime('%d/%m/%Y') }} às {{ ag.hora_inicio.strftime('%H:%M') }}</div>
+                        {% if ag.data_hora_entrega %}
+                        <div class="text-muted small">Entregue {{ ag.data_hora_entrega.strftime('%d/%m %H:%M') }}</div>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="of-tag">{{ ROTULO_FORMA[pg.forma_pagamento] }}</span>
+                    </td>
+                    <td class="fw-bold">{{ moeda(pg.valor_pago) }}</td>
+                    <td class="small">{{ pg.usuario.nome }}</td>
+                    <td>{{ badge_status(ag.status) }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="7" class="text-center text-muted py-4">
+                        Nenhum atendimento concluído encontrado no período selecionado.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

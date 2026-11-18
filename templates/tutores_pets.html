@@ -1,0 +1,509 @@
+{% extends "base.html" %}
+{% block title %}Tutores e Pets{% endblock %}
+
+{% block header_title %}
+{% if selecionado %}
+<a class="of-breadcrumb" href="{{ url_for('tutores_pets', q=busca) }}">
+    <i class="bi bi-arrow-left" aria-hidden="true"></i>
+    <span>Tutores e pets</span>
+</a>
+<h1>Perfil de {{ selecionado.nome }}</h1>
+{% else %}
+<h1>Tutores e pets</h1>
+<p class="of-sub">Cadastros do Pet Shop Oliver's · {{ tutores|length }} tutor(es)</p>
+{% endif %}
+{% endblock %}
+
+{% block header_actions %}
+{% if selecionado %}
+<button type="button" class="btn btn-of-outline" data-bs-toggle="modal" data-bs-target="#modalAdicionarPet">
+    <i class="bi bi-plus-circle" aria-hidden="true"></i>
+    <span>Adicionar pet a este tutor</span>
+</button>
+{% endif %}
+<button type="button" class="btn btn-of-accent" data-bs-toggle="modal" data-bs-target="#modalNovoTutor">
+    <i class="bi bi-person-plus-fill" aria-hidden="true"></i>
+    <span>Novo tutor e pet</span>
+</button>
+{% endblock %}
+
+{% block content %}
+{# --- Painel de Perfil do Tutor (Figma 12) ------------------------------- #}
+{% if selecionado %}
+<section class="row g-4 mb-4" aria-label="Ficha do tutor selecionado">
+    <div class="col-lg-4">
+        <div class="of-card h-100 d-flex flex-column">
+            <div class="text-center mb-3">
+                <span class="of-avatar lg c1 mb-2" aria-hidden="true">{{ iniciais(selecionado.nome) }}</span>
+                <h2 class="fs-4 mb-1">{{ selecionado.nome }}</h2>
+                <span class="text-muted small">{{ selecionado.pets|length }} pet(s) vinculado(s)</span>
+            </div>
+
+            <a class="btn btn-of-whats w-100 mb-3" href="{{ link_whatsapp_tutor(selecionado) }}"
+               target="_blank" rel="noopener noreferrer">
+                <i class="bi bi-whatsapp" aria-hidden="true"></i>
+                <span>Conversar no WhatsApp</span>
+            </a>
+
+            <dl class="of-info mb-3">
+                <dt>WhatsApp / Telefone</dt>
+                <dd>{{ selecionado.telefone }}</dd>
+                <dt>Pets vinculados</dt>
+                <dd>
+                    {% if selecionado.pets %}
+                        {% for p in selecionado.pets %}
+                        <span class="of-tag me-1">{{ p.nome }} ({{ ROTULO_PORTE[p.porte] }})</span>
+                        {% endfor %}
+                    {% else %}
+                        <span class="text-muted">Nenhum pet cadastrado</span>
+                    {% endif %}
+                </dd>
+            </dl>
+
+            {# Edicao rapida do tutor + exclusao/anonimizacao LGPD #}
+            <form method="post" action="{{ url_for('editar_tutor', id_tutor=selecionado.id_tutor) }}" class="border-top pt-3 mt-auto">
+                <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+                <h3 class="fs-6 fw-bold mb-2">Editar dados do tutor</h3>
+                <div class="mb-2">
+                    <label for="ed_tutor_nome" class="form-label">Nome completo</label>
+                    <input type="text" id="ed_tutor_nome" name="nome" class="form-control"
+                           value="{{ selecionado.nome }}" maxlength="100" required>
+                </div>
+                <div class="mb-3">
+                    <label for="ed_tutor_tel" class="form-label">Telefone / WhatsApp com DDD</label>
+                    <input type="tel" id="ed_tutor_tel" name="telefone" class="form-control"
+                           value="{{ selecionado.telefone }}" data-mask="telefone" maxlength="15" required>
+                </div>
+                <button type="submit" class="btn btn-of-primary w-100">
+                    <i class="bi bi-check-lg" aria-hidden="true"></i>
+                    <span>Salvar alterações do tutor</span>
+                </button>
+            </form>
+
+            <form method="post" action="{{ url_for('excluir_tutor', id_tutor=selecionado.id_tutor) }}" class="mt-2"
+                  onsubmit="return confirm('Confirmar exclusão/anonimização LGPD de {{ selecionado.nome }}? Registros financeiros já cobrados serão preservados.');">
+                <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-of-danger w-100">
+                    <i class="bi bi-shield-lock" aria-hidden="true"></i>
+                    <span>Excluir / Anonimizar (LGPD)</span>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div class="col-lg-8 d-flex flex-column gap-4">
+        {# Pets vinculados #}
+        <div class="of-card">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                <h2 class="of-card-title mb-0">
+                    Pets vinculados ({{ selecionado.pets|length }} cadastrado(s))
+                </h2>
+                <button type="button" class="btn btn-of-accent" data-bs-toggle="modal" data-bs-target="#modalAdicionarPet">
+                    <i class="bi bi-plus-lg" aria-hidden="true"></i>
+                    <span>Adicionar mais um pet</span>
+                </button>
+            </div>
+
+            {% if selecionado.pets %}
+            <div class="row g-3">
+                {% for p in selecionado.pets %}
+                <div class="col-md-6">
+                    <div class="of-pet-card">
+                        <div class="d-flex align-items-center gap-2 mb-2">
+                            <span class="of-avatar c{{ (loop.index % 4) + 1 }}" aria-hidden="true">{{ iniciais(p.nome) }}</span>
+                            <div>
+                                <div class="fw-bold fs-5">{{ p.nome }}</div>
+                                <div class="text-muted small">{{ p.raca or 'Raça não informada' }}</div>
+                            </div>
+                        </div>
+
+                        <div class="mb-2 d-flex flex-wrap gap-1">
+                            <span class="of-tag neutral">Porte {{ ROTULO_PORTE[p.porte] }}</span>
+                            {% if p.raca %}<span class="of-tag warn">{{ p.raca }}</span>{% endif %}
+                        </div>
+
+                        <p class="obs mb-3">
+                            {{ p.observacoes or 'Sem observações de saúde, alergia ou manejo.' }}
+                        </p>
+
+                        <div class="d-flex flex-wrap gap-2 mt-auto">
+                            <button type="button" class="btn btn-of-outline flex-grow-1"
+                                    data-bs-toggle="modal" data-bs-target="#modalHistoricoPet"
+                                    data-pet-id="{{ p.id_pet }}" data-pet-nome="{{ p.nome }}">
+                                <i class="bi bi-clock-history" aria-hidden="true"></i>
+                                <span>Ficha e histórico</span>
+                            </button>
+                            <button type="button" class="btn btn-of-outline"
+                                    data-bs-toggle="modal" data-bs-target="#modalEditarPet"
+                                    data-pet-id="{{ p.id_pet }}" data-nome="{{ p.nome }}"
+                                    data-porte="{{ p.porte }}" data-raca="{{ p.raca or '' }}"
+                                    data-observacoes="{{ p.observacoes or '' }}"
+                                    aria-label="Editar {{ p.nome }}">
+                                <i class="bi bi-pencil" aria-hidden="true"></i>
+                                <span>Editar</span>
+                            </button>
+                            <form method="post" action="{{ url_for('excluir_pet', id_pet=p.id_pet) }}"
+                                  onsubmit="return confirm('Confirmar exclusão/anonimização do pet {{ p.nome }}?');">
+                                <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-of-danger" aria-label="Excluir {{ p.nome }}">
+                                    <i class="bi bi-trash" aria-hidden="true"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-muted mb-0">Este tutor ainda não possui pets vinculados.</p>
+            {% endif %}
+        </div>
+
+        {# Historico de atendimentos dos pets do tutor #}
+        <div class="of-card">
+            <h2 class="of-card-title">Histórico de atendimentos do tutor</h2>
+            {% if historico_tutor %}
+            <div class="table-responsive">
+                <table class="of-table">
+                    <caption class="visually-hidden">Atendimentos dos pets de {{ selecionado.nome }}</caption>
+                    <thead>
+                        <tr>
+                            <th scope="col">Data</th>
+                            <th scope="col">Pet</th>
+                            <th scope="col">Serviço realizado</th>
+                            <th scope="col">Valor</th>
+                            <th scope="col">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for ag in historico_tutor %}
+                        <tr>
+                            <td>{{ ag.data.strftime('%d/%m/%Y') }} <span class="text-muted small">{{ ag.hora_inicio.strftime('%H:%M') }}</span></td>
+                            <td class="fw-bold" style="color: var(--of-primary);">{{ ag.pet.nome }}</td>
+                            <td>{{ ag.servico.nome }}</td>
+                            <td class="fw-bold">{{ moeda(ag.pagamento.valor_pago if ag.pagamento else ag.valor_cobrado) }}</td>
+                            <td>{{ badge_status(ag.status) }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-muted mb-0">Nenhum atendimento registrado para os pets deste tutor.</p>
+            {% endif %}
+        </div>
+    </div>
+</section>
+{% endif %}
+
+{# --- Listagem geral de tutores e pets (Figma 10) ------------------------ #}
+<section class="of-card" aria-labelledby="titulo-lista-tutores">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+        <h2 class="of-card-title mb-0" id="titulo-lista-tutores">Lista de tutores e pets</h2>
+
+        <form method="get" action="{{ url_for('tutores_pets') }}" class="d-flex gap-2 flex-wrap" role="search">
+            <div>
+                <label for="busca_tutor_pet" class="visually-hidden">Buscar por tutor, pet ou telefone</label>
+                <input type="search" id="busca_tutor_pet" name="q" value="{{ busca }}"
+                       class="form-control" placeholder="Buscar tutor, pet ou telefone..." style="min-width: 280px;">
+            </div>
+            <button type="submit" class="btn btn-of-primary">
+                <i class="bi bi-search" aria-hidden="true"></i>
+                <span>Buscar</span>
+            </button>
+            {% if busca %}
+            <a class="btn btn-of-outline" href="{{ url_for('tutores_pets') }}">Limpar</a>
+            {% endif %}
+        </form>
+    </div>
+
+    <div class="table-responsive">
+        <table class="of-table">
+            <caption class="visually-hidden">Tutores e pets cadastrados no Pet Shop Oliver's</caption>
+            <thead>
+                <tr>
+                    <th scope="col">Tutor</th>
+                    <th scope="col">Contato (WhatsApp)</th>
+                    <th scope="col">Pets</th>
+                    <th scope="col">Último atendimento</th>
+                    <th scope="col">Total gasto</th>
+                    <th scope="col" class="text-end">Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in tutores %}
+                {% set r = resumo[t.id_tutor] %}
+                <tr>
+                    <td>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="of-avatar c{{ (loop.index % 4) + 1 }}" aria-hidden="true">{{ iniciais(t.nome) }}</span>
+                            <span class="fw-bold">{{ t.nome }}</span>
+                        </div>
+                    </td>
+                    <td>{{ t.telefone }}</td>
+                    <td>
+                        {% if t.pets %}
+                            {% for p in t.pets %}
+                            <button type="button" class="btn btn-sm btn-of-outline me-1 mb-1"
+                                    data-bs-toggle="modal" data-bs-target="#modalHistoricoPet"
+                                    data-pet-id="{{ p.id_pet }}" data-pet-nome="{{ p.nome }}"
+                                    aria-label="Ver histórico do pet {{ p.nome }}">
+                                <i class="bi bi-heart" aria-hidden="true"></i>
+                                <span>{{ p.nome }}</span>
+                            </button>
+                            {% endfor %}
+                        {% else %}
+                            <span class="text-muted small">Sem pets</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ r.ultimo.strftime('%d/%m/%Y') if r.ultimo else '—' }}</td>
+                    <td class="fw-bold">{{ moeda(r.total) }}</td>
+                    <td class="text-end">
+                        <a class="btn btn-of-outline" href="{{ url_for('tutores_pets', tutor=t.id_tutor, q=busca) }}">
+                            <span>Ver perfil</span>
+                        </a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6" class="text-center text-muted py-4">Nenhum tutor encontrado.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+{# ==========================================================================
+   MODAL 1: Novo Tutor + Primeiro Pet (Figma 11)
+   ========================================================================== #}
+<div class="modal fade" id="modalNovoTutor" tabindex="-1" aria-labelledby="tituloNovoTutor" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title fs-4" id="tituloNovoTutor">Novo tutor e pet</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <form method="post" action="{{ url_for('criar_tutor') }}">
+                <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+                <div class="modal-body">
+                    <div class="of-card mb-3">
+                        <h3 class="fs-6 fw-bold mb-3">Dados do tutor</h3>
+                        <div class="row g-3">
+                            <div class="col-md-7">
+                                <label for="nt_nome" class="form-label">Nome completo do tutor</label>
+                                <input type="text" id="nt_nome" name="nome" class="form-control"
+                                       placeholder="Ex.: Maria Silva" maxlength="100" required>
+                            </div>
+                            <div class="col-md-5">
+                                <label for="nt_telefone" class="form-label">Telefone (WhatsApp com DDD)</label>
+                                <input type="tel" id="nt_telefone" name="telefone" class="form-control"
+                                       placeholder="(11) 99999-0000" data-mask="telefone" maxlength="15" required>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="of-card">
+                        <h3 class="fs-6 fw-bold mb-3">Dados do primeiro pet</h3>
+                        <div class="row g-3">
+                            <div class="col-md-5">
+                                <label for="nt_pet_nome" class="form-label">Nome do pet</label>
+                                <input type="text" id="nt_pet_nome" name="pet_nome" class="form-control"
+                                       placeholder="Ex.: Thor" maxlength="60" required>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="nt_pet_porte" class="form-label">Porte</label>
+                                <select id="nt_pet_porte" name="pet_porte" class="form-select" required>
+                                    {% for p in PORTES %}
+                                    <option value="{{ p }}">{{ ROTULO_PORTE[p] }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="nt_pet_raca" class="form-label">Raça (opcional)</label>
+                                <input type="text" id="nt_pet_raca" name="pet_raca" class="form-control"
+                                       placeholder="Ex.: Golden Retriever, SRD" maxlength="60">
+                            </div>
+                            <div class="col-12">
+                                <label for="nt_pet_obs" class="form-label">Observações de saúde, alergias ou manejo</label>
+                                <textarea id="nt_pet_obs" name="pet_observacoes" class="form-control" rows="3"
+                                          placeholder="Ex.: Agitado no banho, pele sensível, usar shampoo neutro..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-of-outline" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-of-primary">
+                        <i class="bi bi-check-lg" aria-hidden="true"></i>
+                        <span>Salvar cadastro</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{# ==========================================================================
+   MODAL 2: Adicionar Pet ao Tutor selecionado (Figma 13)
+   ========================================================================== #}
+{% if selecionado %}
+<div class="modal fade" id="modalAdicionarPet" tabindex="-1" aria-labelledby="tituloAdicionarPet" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title fs-4" id="tituloAdicionarPet">
+                    Adicionar novo pet a {{ selecionado.nome }}
+                </h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <form method="post" action="{{ url_for('criar_pet', id_tutor=selecionado.id_tutor) }}">
+                <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-5">
+                            <label for="ap_nome" class="form-label">Nome do pet</label>
+                            <input type="text" id="ap_nome" name="pet_nome" class="form-control"
+                                   placeholder="Ex.: Toby" maxlength="60" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="ap_porte" class="form-label">Porte</label>
+                            <select id="ap_porte" name="pet_porte" class="form-select" required>
+                                {% for p in PORTES %}
+                                <option value="{{ p }}">{{ ROTULO_PORTE[p] }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="ap_raca" class="form-label">Raça</label>
+                            <input type="text" id="ap_raca" name="pet_raca" class="form-control"
+                                   placeholder="Ex.: Maltês, SRD..." maxlength="60">
+                        </div>
+                        <div class="col-12">
+                            <label for="ap_obs" class="form-label">Observações de saúde, alergias ou manejo</label>
+                            <textarea id="ap_obs" name="pet_observacoes" class="form-control" rows="3"
+                                      placeholder="Ex.: Pele sensível, usar shampoo hipoalergênico..."></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-of-outline" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-of-primary">Salvar e vincular pet</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{# ==========================================================================
+   MODAL 3: Editar Pet
+   ========================================================================== #}
+<div class="modal fade" id="modalEditarPet" tabindex="-1" aria-labelledby="tituloEditarPet" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title fs-4" id="tituloEditarPet">Editar dados do pet</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <form method="post" action="#">
+                <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-5">
+                            <label for="ep_nome" class="form-label">Nome do pet</label>
+                            <input type="text" id="ep_nome" name="pet_nome" class="form-control" maxlength="60" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="ep_porte" class="form-label">Porte</label>
+                            <select id="ep_porte" name="pet_porte" class="form-select" required>
+                                {% for p in PORTES %}
+                                <option value="{{ p }}">{{ ROTULO_PORTE[p] }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="ep_raca" class="form-label">Raça</label>
+                            <input type="text" id="ep_raca" name="pet_raca" class="form-control" maxlength="60">
+                        </div>
+                        <div class="col-12">
+                            <label for="ep_observacoes" class="form-label">Observações de saúde, alergias ou manejo</label>
+                            <textarea id="ep_observacoes" name="pet_observacoes" class="form-control" rows="3"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-of-outline" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-of-primary">Salvar alterações</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{# ==========================================================================
+   MODAL 4: Ficha e Historico do Pet (Figma 14 - RF18)
+   ========================================================================== #}
+<div class="modal fade" id="modalHistoricoPet" tabindex="-1" aria-labelledby="tituloHistoricoPet" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title fs-4" id="tituloHistoricoPet">Perfil e histórico do pet</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-4">
+                    <div class="col-lg-4 d-flex flex-column gap-3">
+                        <div class="of-card text-center">
+                            <span class="of-avatar lg mb-2" id="hp_inicial" aria-hidden="true">P</span>
+                            <h3 class="fs-4 mb-1" id="hp_nome">Pet</h3>
+                            <p class="text-muted small mb-2" id="hp_meta">Raça · Porte</p>
+                            <div class="border-top pt-2 text-start">
+                                <div class="small text-muted">Tutor responsável</div>
+                                <div class="fw-bold mb-2" id="hp_tutor">—</div>
+                                <div class="small text-muted">Observações</div>
+                                <div class="small" id="hp_obs">—</div>
+                            </div>
+                        </div>
+                        <div class="of-card">
+                            <h4 class="fs-6 fw-bold mb-2">Estatísticas (concluídos)</h4>
+                            <div class="row">
+                                <div class="col-6">
+                                    <div class="fs-4 fw-bold" style="color: var(--of-primary);" id="hp_qtd">0</div>
+                                    <div class="text-muted small">Atendimentos</div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="fs-4 fw-bold" style="color: var(--of-primary);" id="hp_total">R$ 0,00</div>
+                                    <div class="text-muted small">Total gasto</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-8">
+                        <div class="of-card h-100">
+                            <h3 class="of-card-title">Histórico de atendimentos</h3>
+                            <div class="table-responsive">
+                                <table class="of-table">
+                                    <caption class="visually-hidden">Histórico de atendimentos do pet</caption>
+                                    <thead>
+                                        <tr>
+                                            <th scope="col">Data</th>
+                                            <th scope="col">Serviço</th>
+                                            <th scope="col">Valor</th>
+                                            <th scope="col">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="hp_tbody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-of-primary" data-bs-dismiss="modal">Fechar</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

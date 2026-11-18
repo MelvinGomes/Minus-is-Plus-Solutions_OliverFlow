@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+{% block title %}Agenda Semanal{% endblock %}
+
+{% block header_title %}
+<h1>Agenda</h1>
+<p class="of-sub">
+    Segunda-feira, {{ dias[0].strftime('%d/%m') }} – Sábado, {{ dias[-1].strftime('%d/%m/%Y') }}
+    · {{ total_semana }} agendamento(s) na semana
+</p>
+{% endblock %}
+
+{% block header_actions %}
+<div class="of-toggle" role="group" aria-label="Alternar visão da agenda">
+    <a href="{{ url_for('agenda_semanal', semana=dias[0].isoformat()) }}" aria-current="page">Semana</a>
+    <a href="{{ url_for('dashboard', data=hoje.isoformat()) }}">Dia</a>
+</div>
+
+<div class="d-flex align-items-center gap-2">
+    <a class="btn btn-of-outline" href="{{ url_for('agenda_semanal', semana=semana_anterior.isoformat()) }}" aria-label="Semana anterior">
+        <i class="bi bi-chevron-left" aria-hidden="true"></i>
+    </a>
+    <a class="btn btn-of-outline" href="{{ url_for('agenda_semanal') }}">Esta semana</a>
+    <a class="btn btn-of-outline" href="{{ url_for('agenda_semanal', semana=semana_seguinte.isoformat()) }}" aria-label="Próxima semana">
+        <i class="bi bi-chevron-right" aria-hidden="true"></i>
+    </a>
+</div>
+
+<button type="button" class="btn btn-of-accent" data-bs-toggle="modal" data-bs-target="#modalNovoAgendamento"
+        data-data="{{ hoje.isoformat() }}">
+    <i class="bi bi-plus-lg" aria-hidden="true"></i>
+    <span>Novo agendamento</span>
+</button>
+{% endblock %}
+
+{% block content %}
+{% set nomes_curtos = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'] %}
+<section class="of-card of-week-wrap" aria-label="Grade semanal de agendamentos">
+    <div class="of-week">
+        {# Cabecalho #}
+        <div class="of-week-head"></div>
+        {% for d in dias %}
+        <div class="of-week-head {% if d == hoje %}hoje{% endif %}">
+            <a href="{{ url_for('dashboard', data=d.isoformat()) }}"
+               aria-label="Abrir fila do dia {{ d.strftime('%d/%m/%Y') }}">
+                <span class="num">{{ d.strftime('%d') }}</span>
+                <span class="dia">{{ nomes_curtos[loop.index0] }} · {{ d.strftime('%m/%Y') }}</span>
+            </a>
+        </div>
+        {% endfor %}
+
+        {# Coluna de horas #}
+        <div class="of-week-hours">
+            {% for h in horas %}
+            <div>{{ '%02d:00'|format(h) }}</div>
+            {% endfor %}
+        </div>
+
+        {# Colunas dos 6 dias (80px por hora -> 4/3 px por minuto) #}
+        {% for d in dias %}
+        <div class="of-week-col" style="height: {{ (horas|length) * 80 }}px;">
+            {% for h in horas %}
+            <div class="linha"></div>
+            {% endfor %}
+
+            {% for item in por_dia[d] %}
+            {% set ag = item.ag %}
+            {% set s = STATUS_UI[ag.status] %}
+            <a class="of-event {{ s.classe }}"
+               href="{{ url_for('dashboard', data=d.isoformat()) }}"
+               style="top: {{ (item.topo * 80 / 60)|round(1) }}px; height: {{ ([item.altura * 80 / 60, 42]|max)|round(1) }}px;"
+               title="{{ ag.pet.nome }} ({{ ag.pet.tutor.nome }}) · {{ ag.servico.nome }} · {{ ag.inicio_dt.strftime('%H:%M') }}–{{ ag.fim_dt.strftime('%H:%M') }} · {{ s.texto }}">
+                <strong>{{ ag.hora_inicio.strftime('%H:%M') }} · {{ ag.pet.nome }}</strong>
+                <span>{{ ag.servico.nome }}</span>
+                <span class="d-block small">
+                    <i class="bi {{ s.icone }}" aria-hidden="true"></i> {{ s.texto }}
+                </span>
+            </a>
+            {% endfor %}
+        </div>
+        {% endfor %}
+    </div>
+</section>
+
+{# Reutiliza o modal de Novo Agendamento #}
+<div class="modal fade" id="modalNovoAgendamento" tabindex="-1" aria-labelledby="tituloNovoAgendamento" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title fs-4" id="tituloNovoAgendamento">Novo agendamento</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <form method="post" action="{{ url_for('criar_agendamento') }}">
+                <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+                <input type="hidden" name="voltar" value="agenda">
+                <input type="hidden" name="next" value="{{ request.full_path }}">
+                <div class="modal-body">
+                    <div class="row g-4">
+                        <div class="col-lg-8 d-flex flex-column gap-3">
+                            <div class="of-card">
+                                <h3 class="fs-6 fw-bold mb-3">1. Tutor e pet</h3>
+                                <div class="row g-3">
+                                    <div class="col-12">
+                                        <label for="ag_tutor_id" class="form-label">Tutor</label>
+                                        <select id="ag_tutor_id" name="tutor_id" class="form-select" required>
+                                            <option value="">Selecione o tutor...</option>
+                                            {% for t in tutores %}
+                                            <option value="{{ t.id_tutor }}">{{ t.nome }} — {{ t.telefone }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="col-md-8">
+                                        <label for="ag_pet_id" class="form-label">Pet</label>
+                                        <select id="ag_pet_id" name="pet_id" class="form-select" required>
+                                            <option value="">Selecione primeiro o tutor...</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label for="ag_pet_porte" class="form-label">Porte</label>
+                                        <input type="text" id="ag_pet_porte" class="form-control" readonly placeholder="—">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="of-card">
+                                <h3 class="fs-6 fw-bold mb-3">2. Serviço</h3>
+                                <div class="row g-2">
+                                    {% for s in servicos %}
+                                    <div class="col-md-6 of-option">
+                                        <input type="radio" name="servico_id" id="ag_srv_{{ s.id_servico }}"
+                                               value="{{ s.id_servico }}"
+                                               data-nome="{{ s.nome }}"
+                                               data-duracao="{{ s.duracao_min }}"
+                                               data-duracao-texto="{{ duracao_texto(s.duracao_min) }}"
+                                               data-valor="{{ '%.2f'|format(s.valor) }}"
+                                               {% if loop.first %}checked{% endif %} required>
+                                        <label for="ag_srv_{{ s.id_servico }}">
+                                            <span class="check" aria-hidden="true"></span>
+                                            <span>
+                                                <span class="opt-title">{{ s.nome }}</span>
+                                                <span class="opt-sub">{{ moeda(s.valor) }} · {{ duracao_texto(s.duracao_min) }}</span>
+                                            </span>
+                                        </label>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+
+                            <div class="of-card">
+                                <h3 class="fs-6 fw-bold mb-3">3. Data, horário e valor acordado</h3>
+                                <div class="row g-3 mb-3">
+                                    <div class="col-md-6">
+                                        <label for="ag_data" class="form-label">Data do atendimento</label>
+                                        <input type="date" id="ag_data" name="data" class="form-control"
+                                               value="{{ hoje.isoformat() }}" min="{{ hoje.isoformat() }}" required>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="ag_valor_cobrado" class="form-label">Valor cobrado (R$)</label>
+                                        <input type="text" id="ag_valor_cobrado" name="valor_cobrado" class="form-control"
+                                               inputmode="decimal" required>
+                                    </div>
+                                </div>
+
+                                <span class="form-label d-block" id="rotulo_horarios_sem">Horário de início</span>
+                                <div id="ag_slots_container" class="of-slots" role="radiogroup" aria-labelledby="rotulo_horarios_sem"></div>
+                            </div>
+                        </div>
+
+                        <div class="col-lg-4">
+                            <div class="of-card h-100 d-flex flex-column">
+                                <h3 class="fs-6 fw-bold mb-3">Resumo</h3>
+                                <dl class="of-resumo mb-2">
+                                    <dt>Pet</dt>
+                                    <dd id="res_pet">Selecione o pet</dd>
+                                    <dt>Data e horário</dt>
+                                    <dd id="res_data_hora">{{ hoje.strftime('%d/%m/%Y') }}</dd>
+                                    <dt>Serviço</dt>
+                                    <dd class="d-flex justify-content-between">
+                                        <span id="res_servico">—</span>
+                                        <span id="res_valor">R$ 0,00</span>
+                                    </dd>
+                                </dl>
+                                <div class="of-total mt-auto">
+                                    <span>Total</span>
+                                    <span class="valor" id="res_total">R$ 0,00</span>
+                                </div>
+                                <div class="d-grid gap-2 mt-3">
+                                    <button type="submit" class="btn btn-of-primary">Confirmar agendamento</button>
+                                    <button type="button" class="btn btn-of-outline" data-bs-dismiss="modal">Cancelar</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
